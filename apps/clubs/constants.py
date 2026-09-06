@@ -3,6 +3,9 @@
 Like ``apps.users.constants``, these are fixed, code-defined taxonomies
 (no DB-driven lookup tables). Values are stable, API-friendly snake_case
 keys; the frontend maps its own camelCase labels onto them.
+
+Taxonomies that are not specific to clubs (activities, languages,
+regions) live in ``apps.common.constants`` because events share them.
 """
 
 from django.db import models
@@ -25,63 +28,6 @@ class EntityType(models.TextChoices):
     SOLE_TRADER = "sole_trader", "Sole trader"
     LLC = "llc", "LLC"
     INFORMAL = "informal", "Informal group"
-
-
-class Region(models.TextChoices):
-    """Administrative regions of Armenia (plus Yerevan)."""
-
-    YEREVAN = "yerevan", "Yerevan"
-    ARAGATSOTN = "aragatsotn", "Aragatsotn"
-    ARARAT = "ararat", "Ararat"
-    ARMAVIR = "armavir", "Armavir"
-    GEGHARKUNIK = "gegharkunik", "Gegharkunik"
-    KOTAYK = "kotayk", "Kotayk"
-    LORI = "lori", "Lori"
-    SHIRAK = "shirak", "Shirak"
-    SYUNIK = "syunik", "Syunik"
-    TAVUSH = "tavush", "Tavush"
-    VAYOTS_DZOR = "vayots_dzor", "Vayots Dzor"
-
-
-class TeamRole(models.TextChoices):
-    """Club-internal job title.
-
-    Deliberately separate from the platform-wide ``users.Role``: this is
-    a label inside a club, not an authorization role.
-    """
-
-    LEAD_GUIDE = "lead_guide", "Lead guide"
-    SWEEP_GUIDE = "sweep_guide", "Sweep guide"
-    MANAGER = "manager", "Manager"
-    ADMIN_ASSISTANT = "admin_assistant", "Admin assistant"
-
-
-class ActivityType(models.TextChoices):
-    HIKING = "hiking", "Hiking"
-    TRAIL_RUNNING = "trail_running", "Trail running"
-    CYCLING = "cycling", "Cycling"
-    CLIMBING = "climbing", "Climbing"
-    ZIPLINE = "zipline", "Zipline"
-    SKYDIVING = "skydiving", "Skydiving"
-    PARACHUTING = "parachuting", "Parachuting"
-    PARAGLIDING = "paragliding", "Paragliding"
-    HANG_GLIDING = "hang_gliding", "Hang gliding"
-    SUP_BOARDING = "sup_boarding", "SUP boarding"
-    YACHTING = "yachting", "Yachting"
-    SURFING = "surfing", "Surfing"
-    KAYAKING = "kayaking", "Kayaking"
-    RAFTING = "rafting", "Rafting"
-    CANYONEERING = "canyoneering", "Canyoneering"
-    WAKEBOARDING = "wakeboarding", "Wakeboarding"
-    SKIING = "skiing", "Skiing"
-    SNOWBOARDING = "snowboarding", "Snowboarding"
-    OTHER = "other", "Other"
-
-
-class Language(models.TextChoices):
-    EN = "en", "English"
-    HY = "hy", "Armenian"
-    RU = "ru", "Russian"
 
 
 # Platform roles a Club Owner may provision for a team member. Anything

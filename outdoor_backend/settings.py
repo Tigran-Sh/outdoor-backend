@@ -52,6 +52,7 @@ class BaseConf(Configuration):
         "apps.common",
         "apps.users",
         "apps.clubs",
+        "apps.events",
     ]
 
     @property

@@ -7,13 +7,10 @@ from apps.clubs.constants import (
     REQUIRED_PROFILE_FIELDS,
     SOCIAL_FIELDS,
     TAX_ID_ENTITY_TYPES,
-    ActivityType,
     ClubStatus,
     EntityType,
-    Language,
-    Region,
-    TeamRole,
 )
+from apps.common.constants import ActivityType, Language, Region
 from apps.common.models import UUIDTimeStampedModel
 from apps.common.storage import private_media_storage
 from apps.common.validators import (
@@ -150,12 +147,6 @@ class TeamMember(UUIDTimeStampedModel):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="team_membership",
-    )
-
-    team_role = models.CharField(
-        max_length=32,
-        choices=TeamRole.choices,
-        blank=True,
     )
 
     activity_types = ArrayField(

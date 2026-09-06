@@ -11,11 +11,9 @@ from apps.clubs.constants import (
     TAX_ID_ENTITY_TYPES,
     TEAM_MEMBER_ROLES,
     YEAR_FOUNDED_MIN,
-    ActivityType,
     ClubStatus,
-    Language,
-    TeamRole,
 )
+from apps.common.constants import ActivityType, Language
 from apps.clubs.models import Club, TeamMember, TeamMemberCertificate
 from apps.users.constants import (
     CUSTOM_CAPABILITY_ROLES,
@@ -269,7 +267,6 @@ class TeamMemberSerializer(serializers.ModelSerializer):
             "full_name",
             "platform_role",
             "account_is_active",
-            "team_role",
             "permissions",
             "activity_types",
             "languages",
@@ -340,9 +337,6 @@ class TeamMemberCreateSerializer(
         required=False,
         default=list,
     )
-    team_role = serializers.ChoiceField(
-        choices=TeamRole.choices, required=False, allow_blank=True
-    )
     certificates = serializers.ListField(
         child=serializers.FileField(), required=False, write_only=True
     )
@@ -355,7 +349,6 @@ class TeamMemberCreateSerializer(
             "email",
             "password",
             "platform_role",
-            "team_role",
             "permissions",
             "activity_types",
             "languages",
@@ -476,7 +469,6 @@ class TeamMemberUpdateSerializer(
             "id",
             "full_name",
             "email",
-            "team_role",
             "permissions",
             "activity_types",
             "languages",

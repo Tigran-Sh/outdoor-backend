@@ -1,6 +1,7 @@
 from datetime import date
 
-from apps.clubs.constants import ActivityType, EntityType, Region
+from apps.clubs.constants import EntityType
+from apps.common.constants import ActivityType, Region
 from apps.clubs.tests.base import (
     MY_CLUB_URL,
     ClubAPITestCase,

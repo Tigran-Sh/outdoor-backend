@@ -76,7 +76,6 @@ class TeamMemberCreateTests(ClubAPITestCase):
         res = self.client.post(
             TEAM_URL,
             self._payload(
-                team_role="lead_guide",
                 activity_types=["hiking", "climbing"],
                 languages=["en", "hy"],
                 phone="+37400000000",
@@ -87,7 +86,6 @@ class TeamMemberCreateTests(ClubAPITestCase):
         )
         self.assertEqual(res.status_code, 201, res.json())
         member = TeamMember.objects.get(user__email="elina@example.com")
-        self.assertEqual(member.team_role, "lead_guide")
         self.assertEqual(member.activity_types, ["hiking", "climbing"])
         self.assertEqual(member.languages, ["en", "hy"])
         self.assertEqual(member.experience_years, 5)

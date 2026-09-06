@@ -33,8 +33,8 @@ class TeamMemberCertificateInline(admin.TabularInline):
 
 @admin.register(TeamMember)
 class TeamMemberAdmin(admin.ModelAdmin):
-    list_display = ("user", "club", "team_role", "is_active", "joined_date")
-    list_filter = ("team_role", "is_active")
+    list_display = ("user", "club", "is_active", "joined_date")
+    list_filter = ("is_active",)
     search_fields = ("user__email", "user__full_name", "club__name")
     readonly_fields = ("joined_date", "created_at", "updated_at")
     inlines = [TeamMemberCertificateInline]

@@ -11,6 +11,7 @@ from outdoor_backend.schema import schema_view
 api_v1_patterns = [
     path("", include("apps.users.urls")),
     path("", include("apps.clubs.urls")),
+    path("", include("apps.events.urls")),
 ]
 
 urlpatterns = [

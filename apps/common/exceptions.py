@@ -56,9 +56,16 @@ def custom_exception_handler(exc, context):
         "message": _error_message(data),
     }
 
-    # Preserve field-level validation details when present.
-    if isinstance(data, dict) and "detail" not in data:
-        error["details"] = data
+    # Preserve field-level validation details when present. ``detail``
+    # already became the message, but an error may carry both: a summary
+    # plus structured data the client acts on (e.g. which fields still
+    # block publishing).
+    if isinstance(data, dict):
+        details = {
+            key: value for key, value in data.items() if key != "detail"
+        }
+        if details:
+            error["details"] = details
 
     response.data = {"error": error}
     return response
