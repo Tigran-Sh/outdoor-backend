@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.users.constants import (
@@ -66,12 +67,33 @@ class LoginSerializer(serializers.Serializer):
         if user is None:
             self.fail("invalid_credentials")
 
+        self.check_access(user)
         refresh = RefreshToken.for_user(user)
         return {
             "access": str(refresh.access_token),
             "refresh": str(refresh),
             "user": user,
         }
+
+    def check_access(self, user):
+        """Hook for subclasses to restrict who may log in.
+
+        Runs once the credentials are known good and before any token is
+        issued, so a rejected login never mints one.
+        """
+
+
+class AdminLoginSerializer(LoginSerializer):
+    """Login restricted to staff-side roles.
+
+    The Admin Panel and the client-side marketplace share one account
+    system, so the panel authenticates here to have participants turned
+    away at the door rather than let them in and 403 on every screen.
+    """
+
+    def check_access(self, user):
+        if not authorization.is_admin_panel_user(user):
+            raise PermissionDenied("Admin Panel access required.")
 
 
 class LogoutSerializer(serializers.Serializer):

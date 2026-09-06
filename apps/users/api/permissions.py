@@ -39,7 +39,7 @@ class IsPlatformAdmin(BasePermission):
 
 
 class IsAdminPanelUser(BasePermission):
-    """Allows Club Owner, Guide and Platform Admin; denies Participant."""
+    """Allows every staff-side role; denies Participant."""
 
     message = "Admin Panel access required."
 

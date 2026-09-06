@@ -22,6 +22,7 @@ venv/
 # Django collected/served files
 staticfiles/
 media/
+private-media/
 
 # Test / coverage / type-check caches
 .pytest_cache/

@@ -13,6 +13,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import no_body
 
 from apps.users.api.serializers import (
+    AdminLoginSerializer,
     AdminUserCreateSerializer,
     AdminUserSerializer,
     AdminUserUpdateSerializer,
@@ -48,6 +49,23 @@ AUTH_LOGIN_SCHEMA = dict(
     responses={
         200: LoginSerializer,
         400: openapi.Response(description="Invalid credentials"),
+    },
+)
+
+AUTH_ADMIN_LOGIN_SCHEMA = dict(
+    tags=[AUTH_TAG],
+    operation_summary="Log in to the Admin Panel",
+    operation_description=(
+        "Same as login, but only staff-side roles are accepted. A "
+        "participant is the default client-side account and is rejected "
+        "with 403 instead of receiving tokens."
+    ),
+    request_body=AdminLoginSerializer,
+    security=[],
+    responses={
+        200: AdminLoginSerializer,
+        400: openapi.Response(description="Invalid credentials"),
+        403: openapi.Response(description="Admin Panel access required"),
     },
 )
 

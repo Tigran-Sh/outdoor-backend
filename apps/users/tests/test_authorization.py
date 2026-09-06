@@ -25,6 +25,8 @@ class EffectiveCapabilitiesTests(TestCase):
                 Capability.EXPORT_PARTICIPANTS.value,
                 Capability.QR_CHECK_IN.value,
                 Capability.CONFIRM_COMPLETION.value,
+                Capability.GPS_TRACKING.value,
+                Capability.EMERGENCY_BUTTON.value,
             },
         )
 

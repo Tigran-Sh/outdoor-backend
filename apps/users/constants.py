@@ -40,6 +40,9 @@ class Capability(models.TextChoices):
     CONFIRM_COMPLETION = "confirm_completion", "Confirm completion"
     VIEW_FINANCES = "view_finances", "View finances"
     MANAGE_TEAM_MEMBERS = "manage_team_members", "Manage team members"
+    VIEW_TEAM_MEMBERS = "view_team_members", "View team members"
+    GPS_TRACKING = "gps_tracking", "GPS tracking"
+    EMERGENCY_BUTTON = "emergency_button", "Emergency button"
     CANCEL_EVENT = "cancel_event", "Cancel event"
     REQUEST_REFUND = "request_refund", "Request refund"
     VERIFY_CLUB = "verify_club", "Verify club"
@@ -70,6 +73,9 @@ ROLE_CAPABILITIES = {
             Capability.CONFIRM_COMPLETION,
             Capability.VIEW_FINANCES,
             Capability.MANAGE_TEAM_MEMBERS,
+            Capability.VIEW_TEAM_MEMBERS,
+            Capability.GPS_TRACKING,
+            Capability.EMERGENCY_BUTTON,
             Capability.CANCEL_EVENT,
             Capability.REQUEST_REFUND,
         }
@@ -80,6 +86,8 @@ ROLE_CAPABILITIES = {
             Capability.EXPORT_PARTICIPANTS,
             Capability.QR_CHECK_IN,
             Capability.CONFIRM_COMPLETION,
+            Capability.GPS_TRACKING,
+            Capability.EMERGENCY_BUTTON,
         }
     ),
     Role.INTERNAL_ADMIN: frozenset(),

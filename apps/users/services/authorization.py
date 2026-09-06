@@ -71,7 +71,8 @@ def can_grant_capabilities(user, capabilities):
 def is_admin_panel_user(user):
     """Return True if the user may access Admin Panel APIs.
 
-    Allows CLUB_OWNER, GUIDE and PLATFORM_ADMIN; denies PARTICIPANT.
+    Allows every staff-side role; denies PARTICIPANT, which is the
+    default client-side account and has no admin panel presence.
     """
     return has_any_role(user, ADMIN_PANEL_ROLES)
 

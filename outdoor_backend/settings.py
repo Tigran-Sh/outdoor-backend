@@ -51,6 +51,7 @@ class BaseConf(Configuration):
     LOCAL_APPS = [
         "apps.common",
         "apps.users",
+        "apps.clubs",
     ]
 
     @property
@@ -127,6 +128,17 @@ class BaseConf(Configuration):
 
     STATIC_URL = "static/"
     STATIC_ROOT = BASE_DIR / "staticfiles"
+
+    # User uploads (team member photos, certificates). Served by the app
+    # only in DEBUG; deployments should front these with the web server
+    # or swap the default storage backend for object storage.
+    MEDIA_URL = "media/"
+    MEDIA_ROOT = BASE_DIR / "media"
+
+    # Identity documents and anything else that must not be reachable by
+    # URL. Deliberately outside MEDIA_ROOT so no web server maps it; see
+    # apps.common.storage.PrivateMediaStorage.
+    PRIVATE_MEDIA_ROOT = BASE_DIR / "private-media"
 
     STORAGES = {
         "default": {

@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.users.api.views import (
+    AdminLoginView,
     AdminUserViewSet,
     CapabilityListView,
     ChangePasswordView,
@@ -16,6 +17,11 @@ from apps.users.api.views import (
 
 auth_patterns = [
     path("login/", LoginView.as_view(), name="auth-login"),
+    path(
+        "admin/login/",
+        AdminLoginView.as_view(),
+        name="auth-admin-login",
+    ),
     path("refresh/", RefreshView.as_view(), name="auth-refresh"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),
     path("me/", MeView.as_view(), name="auth-me"),

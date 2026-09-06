@@ -12,6 +12,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.users.api.permissions import IsPlatformAdmin
 from apps.users.api.schema import (
+    AUTH_ADMIN_LOGIN_SCHEMA,
     AUTH_CHANGE_PASSWORD_SCHEMA,
     AUTH_LOGIN_SCHEMA,
     AUTH_LOGOUT_SCHEMA,
@@ -31,6 +32,7 @@ from apps.users.api.schema import (
     USER_UPDATE_SCHEMA,
 )
 from apps.users.api.serializers import (
+    AdminLoginSerializer,
     AdminUserCreateSerializer,
     AdminUserSerializer,
     AdminUserUpdateSerializer,
@@ -59,6 +61,16 @@ class LoginView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class AdminLoginView(LoginView):
+    """Log in to the Admin Panel. Participants are rejected."""
+
+    serializer_class = AdminLoginSerializer
+
+    @swagger_auto_schema(**AUTH_ADMIN_LOGIN_SCHEMA)
+    def post(self, request):
+        return super().post(request)
 
 
 class RefreshView(TokenRefreshView):
