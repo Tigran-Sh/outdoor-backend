@@ -181,8 +181,9 @@ ADMIN_CLUB_AVAILABLE_OWNERS_SCHEMA = dict(
     operation_description=(
         "Platform Admin only. Active users holding the `club_owner` "
         "role who do not own a club yet, i.e. the candidates for the "
-        "`owner` field when creating one. Supports `search` over email "
-        "and full name."
+        "`owner` field when creating one. Returned as a plain, "
+        "unpaginated list for the create form's picker. Supports "
+        "`search` over email and full name."
     ),
     manual_parameters=[
         openapi.Parameter(

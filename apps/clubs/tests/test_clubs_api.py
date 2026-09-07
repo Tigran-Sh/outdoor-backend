@@ -96,7 +96,7 @@ class AvailableOwnerTests(ClubAPITestCase):
     def emails(self, url=AVAILABLE_OWNERS_URL):
         res = self.client.get(url)
         self.assertEqual(res.status_code, 200, res.json())
-        return [row["email"] for row in res.json()["results"]]
+        return [row["email"] for row in res.json()]
 
     def test_lists_club_owners_without_a_club(self):
         self.assertEqual(self.emails(), ["free@example.com"])

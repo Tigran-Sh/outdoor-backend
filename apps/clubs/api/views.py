@@ -152,12 +152,14 @@ class AdminClubViewSet(viewsets.ModelViewSet):
         )
 
     @swagger_auto_schema(**ADMIN_CLUB_AVAILABLE_OWNERS_SCHEMA)
-    @action(detail=False, url_path="available-owners")
+    @action(detail=False, url_path="available-owners", pagination_class=None)
     def available_owners(self, request):
         """Club owners still free to be assigned a club.
 
         ``club`` is one-to-one, so an owner who already has one cannot
         take another; this is what the create form's owner picker lists.
+        Returned unpaginated: an owner leaves the set as soon as they are
+        given a club, so it only ever holds the current backlog.
         """
         owners = User.objects.filter(
             role=Role.CLUB_OWNER, is_active=True, club__isnull=True
@@ -169,9 +171,7 @@ class AdminClubViewSet(viewsets.ModelViewSet):
                 Q(email__icontains=search) | Q(full_name__icontains=search)
             )
 
-        page = self.paginate_queryset(owners)
-        serializer = AvailableOwnerSerializer(page, many=True)
-        return self.get_paginated_response(serializer.data)
+        return Response(AvailableOwnerSerializer(owners, many=True).data)
 
 
 class TeamMemberViewSet(viewsets.ModelViewSet):
