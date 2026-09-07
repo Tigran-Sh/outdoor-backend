@@ -234,6 +234,15 @@ class AdminClubCreateSerializer(serializers.ModelSerializer):
         return club
 
 
+class AvailableOwnerSerializer(serializers.ModelSerializer):
+    """A club owner who does not yet own a club."""
+
+    class Meta:
+        model = User
+        fields = ("id", "email", "full_name")
+        read_only_fields = fields
+
+
 class TeamMemberCertificateSerializer(serializers.ModelSerializer):
     class Meta:
         model = TeamMemberCertificate

@@ -14,6 +14,7 @@ from apps.users.tests.base import BaseAPITestCase, make_user
 TEAM_URL = "/api/v1/club/team-members/"
 MY_CLUB_URL = "/api/v1/club/"
 ADMIN_CLUBS_URL = "/api/v1/admin/clubs/"
+AVAILABLE_OWNERS_URL = f"{ADMIN_CLUBS_URL}available-owners/"
 
 
 def detail_url(member_id):

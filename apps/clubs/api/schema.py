@@ -8,6 +8,7 @@ from drf_yasg import openapi
 
 from apps.clubs.api.serializers import (
     AdminClubCreateSerializer,
+    AvailableOwnerSerializer,
     ClubSerializer,
     ClubUpdateSerializer,
     TeamMemberCreateSerializer,
@@ -172,6 +173,26 @@ ADMIN_CLUB_RETRIEVE_SCHEMA = dict(
     tags=[ADMIN_CLUBS_TAG],
     operation_summary="Get a club",
     responses={200: ClubSerializer},
+)
+
+ADMIN_CLUB_AVAILABLE_OWNERS_SCHEMA = dict(
+    tags=[ADMIN_CLUBS_TAG],
+    operation_summary="List club owners without a club",
+    operation_description=(
+        "Platform Admin only. Active users holding the `club_owner` "
+        "role who do not own a club yet, i.e. the candidates for the "
+        "`owner` field when creating one. Supports `search` over email "
+        "and full name."
+    ),
+    manual_parameters=[
+        openapi.Parameter(
+            "search",
+            openapi.IN_QUERY,
+            description="Match against email and full name",
+            type=openapi.TYPE_STRING,
+        )
+    ],
+    responses={200: AvailableOwnerSerializer(many=True)},
 )
 
 ADMIN_CLUB_CREATE_SCHEMA = dict(

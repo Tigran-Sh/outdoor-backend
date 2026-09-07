@@ -1,6 +1,7 @@
 from apps.clubs.models import Club
 from apps.clubs.tests.base import (
     ADMIN_CLUBS_URL,
+    AVAILABLE_OWNERS_URL,
     MY_CLUB_URL,
     ClubAPITestCase,
     make_club,
@@ -82,3 +83,70 @@ class AdminClubTests(ClubAPITestCase):
         )
         self.assertEqual(res.status_code, 400)
         self.assertIn("owner", res.json()["error"]["details"])
+
+
+class AvailableOwnerTests(ClubAPITestCase):
+    """The owner picker on the club-creation form."""
+
+    def setUp(self):
+        self.admin = make_platform_admin()
+        self.free = make_user("free@example.com", role=Role.CLUB_OWNER)
+        self.auth(self.admin)
+
+    def emails(self, url=AVAILABLE_OWNERS_URL):
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, 200, res.json())
+        return [row["email"] for row in res.json()["results"]]
+
+    def test_lists_club_owners_without_a_club(self):
+        self.assertEqual(self.emails(), ["free@example.com"])
+
+    def test_excludes_owners_that_already_have_a_club(self):
+        make_club("taken@example.com")
+        self.assertNotIn("taken@example.com", self.emails())
+
+    def test_excludes_other_roles(self):
+        make_user("participant@example.com", role=Role.PARTICIPANT)
+        make_user("guide@example.com", role=Role.GUIDE)
+        self.assertEqual(self.emails(), ["free@example.com"])
+
+    def test_excludes_deactivated_accounts(self):
+        make_user(
+            "disabled@example.com", role=Role.CLUB_OWNER, is_active=False
+        )
+        self.assertNotIn("disabled@example.com", self.emails())
+
+    def test_owner_disappears_once_assigned_a_club(self):
+        self.client.post(
+            ADMIN_CLUBS_URL,
+            {"name": "Fresh Club", "owner": str(self.free.id)},
+            format="json",
+        )
+        self.assertEqual(self.emails(), [])
+
+    def test_search_filters_by_email_and_name(self):
+        make_user(
+            "hasmik@example.com",
+            role=Role.CLUB_OWNER,
+            full_name="Hasmik Petrosyan",
+        )
+        self.assertEqual(
+            self.emails(f"{AVAILABLE_OWNERS_URL}?search=hasmik"),
+            ["hasmik@example.com"],
+        )
+        self.assertEqual(
+            self.emails(f"{AVAILABLE_OWNERS_URL}?search=Petrosyan"),
+            ["hasmik@example.com"],
+        )
+
+    def test_only_platform_admin_may_list(self):
+        self.auth(self.free)
+        self.assertEqual(
+            self.client.get(AVAILABLE_OWNERS_URL).status_code, 403
+        )
+
+    def test_requires_authentication(self):
+        self.logout()
+        self.assertEqual(
+            self.client.get(AVAILABLE_OWNERS_URL).status_code, 401
+        )

@@ -1,10 +1,13 @@
 from pathlib import Path
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Q
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.generics import RetrieveUpdateAPIView
@@ -14,6 +17,7 @@ from rest_framework.views import APIView
 
 from apps.clubs.api.permissions import CanAccessTeamMembers
 from apps.clubs.api.schema import (
+    ADMIN_CLUB_AVAILABLE_OWNERS_SCHEMA,
     ADMIN_CLUB_CREATE_SCHEMA,
     ADMIN_CLUB_LIST_SCHEMA,
     ADMIN_CLUB_RETRIEVE_SCHEMA,
@@ -28,6 +32,7 @@ from apps.clubs.api.schema import (
 )
 from apps.clubs.api.serializers import (
     AdminClubCreateSerializer,
+    AvailableOwnerSerializer,
     ClubSerializer,
     ClubUpdateSerializer,
     TeamMemberCreateSerializer,
@@ -37,6 +42,9 @@ from apps.clubs.api.serializers import (
 from apps.clubs.models import Club, TeamMember
 from apps.clubs.services import authorization
 from apps.users.api.permissions import IsPlatformAdmin
+from apps.users.constants import Role
+
+User = get_user_model()
 
 
 class MyClubView(RetrieveUpdateAPIView):
@@ -142,6 +150,28 @@ class AdminClubViewSet(viewsets.ModelViewSet):
         return Response(
             ClubSerializer(club).data, status=status.HTTP_201_CREATED
         )
+
+    @swagger_auto_schema(**ADMIN_CLUB_AVAILABLE_OWNERS_SCHEMA)
+    @action(detail=False, url_path="available-owners")
+    def available_owners(self, request):
+        """Club owners still free to be assigned a club.
+
+        ``club`` is one-to-one, so an owner who already has one cannot
+        take another; this is what the create form's owner picker lists.
+        """
+        owners = User.objects.filter(
+            role=Role.CLUB_OWNER, is_active=True, club__isnull=True
+        ).order_by("full_name", "email")
+
+        search = request.query_params.get("search")
+        if search:
+            owners = owners.filter(
+                Q(email__icontains=search) | Q(full_name__icontains=search)
+            )
+
+        page = self.paginate_queryset(owners)
+        serializer = AvailableOwnerSerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
 
 class TeamMemberViewSet(viewsets.ModelViewSet):
