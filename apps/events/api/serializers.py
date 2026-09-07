@@ -37,6 +37,7 @@ class EventSerializer(serializers.ModelSerializer):
             "club_name",
             "status",
             "title",
+            "description",
             "category",
             "cover_image",
             "gallery_images",
@@ -104,6 +105,7 @@ class EventWriteSerializer(serializers.ModelSerializer):
         model = Event
         fields = (
             "title",
+            "description",
             "category",
             "cover_image",
             "gallery_images",

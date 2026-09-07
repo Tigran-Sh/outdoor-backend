@@ -21,6 +21,7 @@ from apps.clubs.api.schema import (
     ADMIN_CLUB_CREATE_SCHEMA,
     ADMIN_CLUB_LIST_SCHEMA,
     ADMIN_CLUB_RETRIEVE_SCHEMA,
+    ADMIN_CLUB_UPDATE_SCHEMA,
     CLUB_ID_DOCUMENT_SCHEMA,
     MY_CLUB_SCHEMA,
     MY_CLUB_UPDATE_SCHEMA,
@@ -32,6 +33,7 @@ from apps.clubs.api.schema import (
 )
 from apps.clubs.api.serializers import (
     AdminClubCreateSerializer,
+    AdminClubUpdateSerializer,
     AvailableOwnerSerializer,
     ClubSerializer,
     ClubUpdateSerializer,
@@ -107,6 +109,7 @@ class AdminClubViewSet(viewsets.ModelViewSet):
 
     queryset = Club.objects.select_related("owner").all()
     permission_classes = [IsPlatformAdmin]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ["name", "owner__email"]
     ordering_fields = ["created_at", "name"]
@@ -119,6 +122,8 @@ class AdminClubViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return AdminClubCreateSerializer
+        if self.action == "partial_update":
+            return AdminClubUpdateSerializer
         return ClubSerializer
 
     def get_queryset(self):
@@ -150,6 +155,15 @@ class AdminClubViewSet(viewsets.ModelViewSet):
         return Response(
             ClubSerializer(club).data, status=status.HTTP_201_CREATED
         )
+
+    @swagger_auto_schema(**ADMIN_CLUB_UPDATE_SCHEMA)
+    def partial_update(self, request, *args, **kwargs):
+        club = self.get_object()
+        serializer = self.get_serializer(club, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        club.refresh_from_db()
+        return Response(ClubSerializer(club).data)
 
     @swagger_auto_schema(**ADMIN_CLUB_AVAILABLE_OWNERS_SCHEMA)
     @action(detail=False, url_path="available-owners", pagination_class=None)

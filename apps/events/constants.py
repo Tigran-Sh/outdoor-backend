@@ -52,6 +52,7 @@ class CancellationReason(models.TextChoices):
 # draft deliberately allows almost anything to be missing.
 REQUIRED_TO_PUBLISH = (
     "title",
+    "description",
     "category",
     "cover_image",
     "start_at",

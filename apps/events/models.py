@@ -36,6 +36,7 @@ class Event(UUIDTimeStampedModel):
 
     # Block 1 — general
     title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
     category = models.CharField(
         max_length=32,
         choices=ActivityType.choices,

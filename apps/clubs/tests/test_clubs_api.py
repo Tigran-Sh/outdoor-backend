@@ -1,4 +1,6 @@
+from apps.clubs.constants import ClubStatus
 from apps.clubs.models import Club
+from apps.common.constants import ActivityType, Region
 from apps.clubs.tests.base import (
     ADMIN_CLUBS_URL,
     AVAILABLE_OWNERS_URL,
@@ -83,6 +85,130 @@ class AdminClubTests(ClubAPITestCase):
         )
         self.assertEqual(res.status_code, 400)
         self.assertIn("owner", res.json()["error"]["details"])
+
+
+class AdminClubProfileTests(ClubAPITestCase):
+    """An admin registering a club types in its whole profile."""
+
+    ABOUT = "We run guided hikes across Armenia for every level of walker."
+
+    def setUp(self):
+        self.admin = make_platform_admin()
+        self.auth(self.admin)
+
+    def profile(self, **extra):
+        payload = {
+            "about": self.ABOUT,
+            "activity_types": [ActivityType.HIKING.value],
+            "base_region": Region.SYUNIK.value,
+            "year_founded": 2015,
+            "email": "hello@peaks.am",
+            "phone": "+37411223344",
+            "instagram": "peaks.am",
+            "website": "https://peaks.am",
+        }
+        payload.update(extra)
+        return payload
+
+    def test_create_saves_the_whole_profile(self):
+        owner = make_user("full@example.com", role=Role.CLUB_OWNER)
+        res = self.client.post(
+            ADMIN_CLUBS_URL,
+            self.profile(name="Peaks", owner=str(owner.id)),
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201, res.json())
+
+        club = Club.objects.get(owner=owner)
+        self.assertEqual(club.about, self.ABOUT)
+        self.assertEqual(club.activity_types, [ActivityType.HIKING.value])
+        self.assertEqual(club.base_region, Region.SYUNIK.value)
+        self.assertEqual(club.year_founded, 2015)
+        self.assertEqual(club.email, "hello@peaks.am")
+        self.assertEqual(club.phone, "+37411223344")
+        self.assertEqual(club.instagram, "peaks.am")
+        self.assertEqual(club.website, "https://peaks.am")
+
+    def test_create_still_accepts_only_a_name_and_owner(self):
+        owner = make_user("minimal@example.com", role=Role.CLUB_OWNER)
+        res = self.client.post(
+            ADMIN_CLUBS_URL,
+            {"name": "Minimal", "owner": str(owner.id)},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201, res.json())
+
+    def test_create_validates_the_profile(self):
+        owner = make_user("bad@example.com", role=Role.CLUB_OWNER)
+        res = self.client.post(
+            ADMIN_CLUBS_URL,
+            {"name": "Bad", "owner": str(owner.id), "about": "Too short."},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("about", res.json()["error"]["details"])
+
+    def test_admin_updates_a_club(self):
+        club, _ = make_club("edit@example.com", name="Before")
+        res = self.client.patch(
+            f"{ADMIN_CLUBS_URL}{club.id}/",
+            self.profile(name="After"),
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200, res.json())
+
+        club.refresh_from_db()
+        self.assertEqual(club.name, "After")
+        self.assertEqual(club.about, self.ABOUT)
+        self.assertEqual(club.base_region, Region.SYUNIK.value)
+
+    def test_admin_updates_status_and_verification(self):
+        club, _ = make_club("flags@example.com")
+        res = self.client.patch(
+            f"{ADMIN_CLUBS_URL}{club.id}/",
+            {
+                "status": ClubStatus.SUSPENDED.value,
+                "identity_verified": False,
+            },
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200, res.json())
+
+        club.refresh_from_db()
+        self.assertEqual(club.status, ClubStatus.SUSPENDED.value)
+        self.assertFalse(club.identity_verified)
+
+    def test_update_validates_the_profile(self):
+        club, _ = make_club("checked@example.com")
+        res = self.client.patch(
+            f"{ADMIN_CLUBS_URL}{club.id}/",
+            {"activity_types": []},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_update_cannot_reassign_the_owner(self):
+        club, owner = make_club("keep@example.com")
+        other = make_user("thief@example.com", role=Role.CLUB_OWNER)
+        res = self.client.patch(
+            f"{ADMIN_CLUBS_URL}{club.id}/",
+            {"owner": str(other.id)},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200, res.json())
+
+        club.refresh_from_db()
+        self.assertEqual(club.owner, owner)
+
+    def test_only_platform_admin_may_update(self):
+        club, owner = make_club("mine@example.com")
+        self.auth(owner)
+        res = self.client.patch(
+            f"{ADMIN_CLUBS_URL}{club.id}/",
+            {"name": "Hijacked"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 403)
 
 
 class AvailableOwnerTests(ClubAPITestCase):

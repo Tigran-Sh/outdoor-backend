@@ -54,6 +54,24 @@ class EventCreateTests(EventAPITestCase):
         self.assertEqual(body["club"], str(self.club.id))
         self.assertEqual(body["sold_count"], 0)
 
+    def test_description_is_saved_and_returned(self):
+        description = "A long day on the north ridge, above the cloud line."
+        res = self.client.post(
+            EVENTS_URL,
+            self.payload(description=description),
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201, res.json())
+        self.assertEqual(res.json()["description"], description)
+
+        event = Event.objects.get(pk=res.json()["id"])
+        self.assertEqual(event.description, description)
+
+    def test_description_is_optional(self):
+        res = self.client.post(EVENTS_URL, self.payload(), format="json")
+        self.assertEqual(res.status_code, 201, res.json())
+        self.assertEqual(res.json()["description"], "")
+
     def test_title_is_required(self):
         res = self.client.post(
             EVENTS_URL, self.payload(title=""), format="json"
@@ -227,6 +245,15 @@ class EventPublishTests(EventAPITestCase):
         self.assertEqual(res.status_code, 400)
         self.assertIn(
             "guide", res.json()["error"]["details"]["missing_to_publish"]
+        )
+
+    def test_event_without_a_description_cannot_publish(self):
+        event = make_event(self.club, guide=self.guide, description="")
+        res = self.client.post(publish_url(event.id))
+        self.assertEqual(res.status_code, 400)
+        self.assertIn(
+            "description",
+            res.json()["error"]["details"]["missing_to_publish"],
         )
 
     def test_multi_day_without_end_cannot_publish(self):

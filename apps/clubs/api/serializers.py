@@ -162,6 +162,8 @@ class ClubUpdateSerializer(serializers.ModelSerializer):
         """
         if field in attrs:
             return attrs[field]
+        if self.instance is None:
+            return None
         return getattr(self.instance, field)
 
     def validate(self, attrs):
@@ -196,8 +198,13 @@ class ClubUpdateSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class AdminClubCreateSerializer(serializers.ModelSerializer):
-    """Platform Admin creates a club and assigns its owner."""
+class AdminClubCreateSerializer(ClubUpdateSerializer):
+    """Platform Admin creates a club and assigns its owner.
+
+    Accepts the whole profile, not just a name: an admin registering a
+    club on someone's behalf types in what the club gave them, and the
+    owner edits the rest later through ``/api/v1/club/``.
+    """
 
     owner = serializers.PrimaryKeyRelatedField(
         queryset=User.objects.all()
@@ -206,9 +213,12 @@ class AdminClubCreateSerializer(serializers.ModelSerializer):
         choices=ClubStatus.choices, default=ClubStatus.APPROVED
     )
 
-    class Meta:
-        model = Club
-        fields = ("id", "name", "owner", "status")
+    class Meta(ClubUpdateSerializer.Meta):
+        fields = ClubUpdateSerializer.Meta.fields + (
+            "id",
+            "owner",
+            "status",
+        )
         read_only_fields = ("id",)
 
     def validate_owner(self, value):
@@ -232,6 +242,27 @@ class AdminClubCreateSerializer(serializers.ModelSerializer):
             owner.role = Role.CLUB_OWNER
             owner.save(update_fields=["role", "updated_at"])
         return club
+
+
+class AdminClubUpdateSerializer(ClubUpdateSerializer):
+    """Platform Admin editing any club.
+
+    The same profile fields the owner may edit, plus the lifecycle
+    status and the verification flags, which are staff-only. ``owner``
+    is deliberately absent: reassigning a club to a different person is
+    not an edit, and nothing in the product asks for it yet.
+    """
+
+    status = serializers.ChoiceField(
+        choices=ClubStatus.choices, required=False
+    )
+
+    class Meta(ClubUpdateSerializer.Meta):
+        fields = ClubUpdateSerializer.Meta.fields + (
+            "status",
+            "identity_verified",
+            "payment_verified",
+        )
 
 
 class AvailableOwnerSerializer(serializers.ModelSerializer):

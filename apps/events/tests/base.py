@@ -25,6 +25,7 @@ def make_event(club, **extra):
     guide = extra.pop("guide", None)
     defaults = {
         "title": "Aragats North Summit",
+        "description": "A long day on the north ridge, above the clouds.",
         "category": ActivityType.HIKING.value,
         "start_at": timezone.now() + timezone.timedelta(days=14),
         "region": Region.ARAGATSOTN.value,

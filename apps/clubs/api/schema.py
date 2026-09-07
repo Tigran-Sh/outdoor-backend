@@ -8,6 +8,7 @@ from drf_yasg import openapi
 
 from apps.clubs.api.serializers import (
     AdminClubCreateSerializer,
+    AdminClubUpdateSerializer,
     AvailableOwnerSerializer,
     ClubSerializer,
     ClubUpdateSerializer,
@@ -200,12 +201,30 @@ ADMIN_CLUB_CREATE_SCHEMA = dict(
     tags=[ADMIN_CLUBS_TAG],
     operation_summary="Create a club and assign its owner",
     operation_description=(
-        "Platform Admin only. The assigned owner is promoted to the "
+        "Platform Admin only. Only `name` and `owner` are required, but "
+        "the whole profile may be sent at once; accepts "
+        "multipart/form-data for `logo`, `cover_image` and "
+        "`owner_id_document`. The assigned owner is promoted to the "
         "`club_owner` role. A user may own at most one club."
     ),
     request_body=AdminClubCreateSerializer,
     responses={
         201: ClubSerializer,
+        400: openapi.Response(description="Validation error"),
+    },
+)
+
+ADMIN_CLUB_UPDATE_SCHEMA = dict(
+    tags=[ADMIN_CLUBS_TAG],
+    operation_summary="Update a club",
+    operation_description=(
+        "Platform Admin only. Every profile field the owner may edit, "
+        "plus `status`, `identity_verified` and `payment_verified`. The "
+        "owner cannot be reassigned. Accepts multipart/form-data."
+    ),
+    request_body=AdminClubUpdateSerializer,
+    responses={
+        200: ClubSerializer,
         400: openapi.Response(description="Validation error"),
     },
 )
