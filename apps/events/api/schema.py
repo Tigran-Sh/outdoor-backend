@@ -10,6 +10,7 @@ from apps.events.api.serializers import (
     EventCancelSerializer,
     EventSerializer,
     EventWriteSerializer,
+    GuideAvailabilitySerializer,
 )
 
 EVENTS_TAG = "Events"
@@ -48,6 +49,49 @@ EVENT_LIST_SCHEMA = dict(
     ),
     manual_parameters=_FILTERS,
     responses={200: EventSerializer(many=True)},
+)
+
+EVENT_GUIDE_AVAILABILITY_SCHEMA = dict(
+    tags=[EVENTS_TAG],
+    operation_summary="Guide availability calendar",
+    operation_description=(
+        "The club's active guides and the events occupying each one "
+        "inside a date window, for the team calendar. Unpaginated.\n\n"
+        "Availability is derived, never stored: a guide counts as busy "
+        "when an event they are assigned to overlaps the window. "
+        "Cancelled events free their guide, and a draft with no date "
+        "cannot occupy anyone.\n\n"
+        "The club comes from the requester; platform staff must pass "
+        "`club`. Requires `view_team_members`."
+    ),
+    manual_parameters=[
+        openapi.Parameter(
+            "from",
+            openapi.IN_QUERY,
+            description="First day, `YYYY-MM-DD`. Defaults to today.",
+            type=openapi.TYPE_STRING,
+        ),
+        openapi.Parameter(
+            "to",
+            openapi.IN_QUERY,
+            description=(
+                "Last day, inclusive, `YYYY-MM-DD`. Defaults to 30 days "
+                "after `from`; at most 186 days per request."
+            ),
+            type=openapi.TYPE_STRING,
+        ),
+        openapi.Parameter(
+            "club",
+            openapi.IN_QUERY,
+            description="Club id. Required for platform staff only.",
+            type=openapi.TYPE_STRING,
+        ),
+    ],
+    responses={
+        200: GuideAvailabilitySerializer(many=True),
+        400: openapi.Response(description="Bad date range or missing club"),
+        403: openapi.Response(description="Not allowed"),
+    },
 )
 
 EVENT_RETRIEVE_SCHEMA = dict(

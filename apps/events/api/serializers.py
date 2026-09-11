@@ -275,6 +275,44 @@ class EventCancelSerializer(serializers.Serializer):
         return event
 
 
+class GuideAssignmentSerializer(serializers.ModelSerializer):
+    """One event already occupying a guide's calendar."""
+
+    class Meta:
+        model = Event
+        fields = ("id", "title", "status", "start_at", "end_at")
+        read_only_fields = fields
+
+
+class GuideAvailabilitySerializer(serializers.ModelSerializer):
+    """A guide and what they are booked for inside the asked window.
+
+    Availability is derived, not stored: a guide is busy when they are
+    assigned to an event overlapping the window. ``assignments`` comes
+    from the view as a pre-grouped map so the list costs one query.
+    """
+
+    full_name = serializers.CharField(source="user.full_name", read_only=True)
+    assignments = serializers.SerializerMethodField()
+    is_available = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TeamMember
+        fields = ("id", "full_name", "photo", "is_available", "assignments")
+        read_only_fields = fields
+
+    def _events(self, member):
+        return self.context["assignments"].get(member.pk, [])
+
+    def get_assignments(self, member):
+        return GuideAssignmentSerializer(
+            self._events(member), many=True
+        ).data
+
+    def get_is_available(self, member):
+        return not self._events(member)
+
+
 class EventGuideChoiceSerializer(serializers.ModelSerializer):
     """Team members assignable as an event's guide."""
 

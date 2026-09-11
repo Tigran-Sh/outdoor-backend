@@ -1,3 +1,10 @@
+from collections import defaultdict
+from datetime import datetime, time, timedelta
+
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models.functions import Coalesce
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -6,12 +13,14 @@ from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from apps.clubs.models import Club
+from apps.clubs.models import Club, TeamMember
+from apps.clubs.services import authorization as clubs_authorization
 from apps.events.api.permissions import CanAccessEvents
 from apps.events.api.schema import (
     EVENT_CANCEL_SCHEMA,
     EVENT_CREATE_SCHEMA,
     EVENT_DELETE_SCHEMA,
+    EVENT_GUIDE_AVAILABILITY_SCHEMA,
     EVENT_LIST_SCHEMA,
     EVENT_PUBLISH_SCHEMA,
     EVENT_RETRIEVE_SCHEMA,
@@ -21,10 +30,43 @@ from apps.events.api.serializers import (
     EventCancelSerializer,
     EventSerializer,
     EventWriteSerializer,
+    GuideAvailabilitySerializer,
 )
 from apps.events.constants import EventStatus
 from apps.events.models import Event
 from apps.events.services import authorization
+from apps.users.constants import Role
+
+# A calendar asks for a month at a time; the cap keeps a hand-written
+# query string from pulling a club's entire history.
+DEFAULT_CALENDAR_DAYS = 30
+MAX_CALENDAR_DAYS = 186
+
+
+def _club_by_id(club_id):
+    """Look a club up, tolerating a malformed id."""
+    if not club_id:
+        return None
+    try:
+        return Club.objects.filter(pk=club_id).first()
+    except (ValueError, TypeError, DjangoValidationError):
+        return None
+
+
+def _parse_date(value, field):
+    if not value:
+        return None
+    try:
+        parsed = parse_date(value)
+    except ValueError:
+        parsed = None
+    if parsed is None:
+        raise ValidationError({field: "Use the format YYYY-MM-DD."})
+    return parsed
+
+
+def _start_of_day(day):
+    return timezone.make_aware(datetime.combine(day, time.min))
 
 
 class EventViewSet(viewsets.ModelViewSet):
@@ -152,6 +194,102 @@ class EventViewSet(viewsets.ModelViewSet):
             event.status = EventStatus.PUBLISHED
             event.save(update_fields=["status", "updated_at"])
         return Response(EventSerializer(event).data)
+
+    @swagger_auto_schema(**EVENT_GUIDE_AVAILABILITY_SCHEMA)
+    @action(
+        detail=False,
+        url_path="guide-availability",
+        pagination_class=None,
+    )
+    def guide_availability(self, request):
+        """The club's guides and what each is booked for in a window.
+
+        Availability is not stored anywhere: a guide is busy when an
+        event they are assigned to overlaps the window, which is what
+        the club's calendar draws.
+        """
+        club = self._club_for_calendar()
+        window_start, window_end = self._calendar_window()
+        guides = (
+            TeamMember.objects.filter(
+                club=club,
+                is_active=True,
+                user__is_active=True,
+                user__role=Role.GUIDE,
+            )
+            .select_related("user")
+            .order_by("user__full_name", "user__email")
+        )
+        serializer = GuideAvailabilitySerializer(
+            guides,
+            many=True,
+            context={
+                **self.get_serializer_context(),
+                "assignments": self._assignments(
+                    club, window_start, window_end
+                ),
+            },
+        )
+        return Response(serializer.data)
+
+    def _club_for_calendar(self):
+        """The club whose guides the requester may see."""
+        scope = clubs_authorization.readable_club_scope(self.request.user)
+        if scope is None:
+            raise PermissionDenied("You cannot view this club's team.")
+        if scope is not clubs_authorization.ALL_CLUBS:
+            return scope
+        # Platform staff belong to no club; they must say which one.
+        club = _club_by_id(self.request.query_params.get("club"))
+        if club is None:
+            raise ValidationError(
+                {"club": "Specify a club to see its guides."}
+            )
+        return club
+
+    def _calendar_window(self):
+        """The asked date range, as aware datetimes [start, end)."""
+        params = self.request.query_params
+        start_date = _parse_date(params.get("from"), "from")
+        end_date = _parse_date(params.get("to"), "to")
+        if start_date is None:
+            start_date = timezone.localdate()
+        if end_date is None:
+            end_date = start_date + timedelta(days=DEFAULT_CALENDAR_DAYS)
+        if end_date < start_date:
+            raise ValidationError({"to": "Must be on or after `from`."})
+        if (end_date - start_date).days > MAX_CALENDAR_DAYS:
+            raise ValidationError(
+                {"to": f"Ask for at most {MAX_CALENDAR_DAYS} days at once."}
+            )
+        return (
+            _start_of_day(start_date),
+            # Exclusive: the day after the last one asked for.
+            _start_of_day(end_date + timedelta(days=1)),
+        )
+
+    @staticmethod
+    def _assignments(club, window_start, window_end):
+        """Map of team member id -> events overlapping the window.
+
+        A cancelled event frees its guide; a dateless draft cannot be
+        placed on a calendar at all.
+        """
+        events = (
+            Event.objects.filter(
+                club=club,
+                guide__isnull=False,
+                start_at__isnull=False,
+            )
+            .exclude(status=EventStatus.CANCELLED)
+            .annotate(finish=Coalesce("end_at", "start_at"))
+            .filter(start_at__lt=window_end, finish__gte=window_start)
+            .order_by("start_at")
+        )
+        grouped = defaultdict(list)
+        for event in events:
+            grouped[event.guide_id].append(event)
+        return grouped
 
     @swagger_auto_schema(**EVENT_CANCEL_SCHEMA)
     @action(detail=True, methods=["post"])

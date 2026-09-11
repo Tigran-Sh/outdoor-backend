@@ -466,6 +466,159 @@ class EventScopingTests(EventAPITestCase):
         self.assertEqual(titles, {"B event"})
 
 
+class GuideAvailabilityTests(EventAPITestCase):
+    """The club owner's guide calendar."""
+
+    URL = f"{EVENTS_URL}guide-availability/"
+
+    def setUp(self):
+        self.club, self.owner, self.ani = self.make_club_with_guide(
+            "owner9@example.com", "ani@example.com"
+        )
+        self.ani.user.full_name = "Ani Grigoryan"
+        self.ani.user.save(update_fields=["full_name"])
+        self.davit = make_member(self.club, "davit@example.com")
+        self.davit.user.full_name = "Davit Sargsyan"
+        self.davit.user.save(update_fields=["full_name"])
+        self.auth(self.owner)
+
+    def get(self, query=""):
+        res = self.client.get(f"{self.URL}{query}")
+        self.assertEqual(res.status_code, 200, res.json())
+        return res.json()
+
+    def by_name(self, query=""):
+        return {row["full_name"]: row for row in self.get(query)}
+
+    def book(self, guide, day, **extra):
+        return make_event(
+            self.club,
+            guide=guide,
+            start_at=timezone.now() + timezone.timedelta(days=day),
+            **extra,
+        )
+
+    def test_lists_the_clubs_guides_with_identity_fields(self):
+        rows = self.get()
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(
+            set(rows[0]), {"id", "full_name", "photo", "is_available",
+                           "assignments"}
+        )
+        self.assertEqual(rows[0]["id"], str(self.ani.id))
+        self.assertEqual(rows[0]["full_name"], "Ani Grigoryan")
+        self.assertIsNone(rows[0]["photo"])
+
+    def test_ordered_by_name(self):
+        self.assertEqual(
+            [row["full_name"] for row in self.get()],
+            ["Ani Grigoryan", "Davit Sargsyan"],
+        )
+
+    def test_everyone_is_available_when_nothing_is_booked(self):
+        self.assertTrue(all(row["is_available"] for row in self.get()))
+
+    def test_an_assigned_guide_is_busy(self):
+        event = self.book(self.ani, day=3, title="Aragats")
+        rows = self.by_name()
+
+        ani = rows["Ani Grigoryan"]
+        self.assertFalse(ani["is_available"])
+        self.assertEqual(len(ani["assignments"]), 1)
+        self.assertEqual(ani["assignments"][0]["id"], str(event.id))
+        self.assertEqual(ani["assignments"][0]["title"], "Aragats")
+
+        self.assertTrue(rows["Davit Sargsyan"]["is_available"])
+
+    def test_events_outside_the_window_do_not_count(self):
+        self.book(self.ani, day=60)
+        self.assertTrue(self.by_name()["Ani Grigoryan"]["is_available"])
+
+    def test_window_can_be_widened(self):
+        self.book(self.ani, day=60)
+        start = timezone.localdate()
+        end = start + timezone.timedelta(days=90)
+        rows = self.by_name(f"?from={start}&to={end}")
+        self.assertFalse(rows["Ani Grigoryan"]["is_available"])
+
+    def test_multi_day_event_occupies_the_whole_span(self):
+        start = timezone.now() + timezone.timedelta(days=2)
+        make_event(
+            self.club,
+            guide=self.ani,
+            start_at=start,
+            end_at=start + timezone.timedelta(days=5),
+            duration_type=DurationType.MULTI,
+        )
+        # A window that only covers the tail of the event still sees it.
+        day = (start + timezone.timedelta(days=4)).date()
+        rows = self.by_name(f"?from={day}&to={day}")
+        self.assertFalse(rows["Ani Grigoryan"]["is_available"])
+
+    def test_cancelled_event_frees_the_guide(self):
+        event = self.book(self.ani, day=3)
+        event.status = EventStatus.CANCELLED
+        event.save(update_fields=["status"])
+        self.assertTrue(self.by_name()["Ani Grigoryan"]["is_available"])
+
+    def test_draft_without_a_date_cannot_occupy_anyone(self):
+        Event.objects.create(
+            club=self.club, guide=self.ani, title="Undated", start_at=None
+        )
+        self.assertTrue(self.by_name()["Ani Grigoryan"]["is_available"])
+
+    def test_inactive_guide_is_excluded(self):
+        self.davit.is_active = False
+        self.davit.save(update_fields=["is_active"])
+        self.assertNotIn("Davit Sargsyan", self.by_name())
+
+    def test_internal_admins_are_not_listed_as_guides(self):
+        member = make_member(
+            self.club, "office@example.com", role=Role.INTERNAL_ADMIN
+        )
+        member.user.full_name = "Office Person"
+        member.user.save(update_fields=["full_name"])
+        self.assertNotIn("Office Person", self.by_name())
+
+    def test_another_clubs_guides_are_never_listed(self):
+        other_club, _ = make_club("rival@example.com", name="Rival")
+        rival = make_member(other_club, "rival-guide@example.com")
+        rival.user.full_name = "Rival Guide"
+        rival.user.save(update_fields=["full_name"])
+        self.assertNotIn("Rival Guide", self.by_name())
+
+    def test_bad_date_is_rejected(self):
+        res = self.client.get(f"{self.URL}?from=06-09-2026")
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("from", res.json()["error"]["details"])
+
+    def test_reversed_range_is_rejected(self):
+        start = timezone.localdate()
+        res = self.client.get(
+            f"{self.URL}?from={start}&to={start - timezone.timedelta(days=1)}"
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_oversized_range_is_rejected(self):
+        start = timezone.localdate()
+        res = self.client.get(
+            f"{self.URL}?from={start}&to={start + timezone.timedelta(days=400)}"
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_platform_admin_must_name_a_club(self):
+        self.auth(make_platform_admin())
+        res = self.client.get(self.URL)
+        self.assertEqual(res.status_code, 400)
+
+        rows = self.get(f"?club={self.club.id}")
+        self.assertEqual(len(rows), 2)
+
+    def test_guide_without_team_access_is_refused(self):
+        self.auth(self.ani.user)
+        self.assertEqual(self.client.get(self.URL).status_code, 403)
+
+
 class AdminEventBrowsingTests(EventAPITestCase):
     """The platform-wide events table: every club, filtered and paged."""
 
