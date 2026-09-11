@@ -466,6 +466,73 @@ class EventScopingTests(EventAPITestCase):
         self.assertEqual(titles, {"B event"})
 
 
+class AdminEventBrowsingTests(EventAPITestCase):
+    """The platform-wide events table: every club, filtered and paged."""
+
+    def setUp(self):
+        self.peaks, _ = make_club("peaks@example.com", name="Peaks Club")
+        self.valley, _ = make_club("valley@example.com", name="Valley Riders")
+        make_event(self.peaks, title="Aragats summit")
+        make_event(self.valley, title="Vayots Dzor ride")
+        self.admin = make_platform_admin()
+        self.auth(self.admin)
+
+    def titles(self, query=""):
+        res = self.client.get(f"{EVENTS_URL}{query}")
+        self.assertEqual(res.status_code, 200, res.json())
+        return {row["title"] for row in res.json()["results"]}
+
+    def test_sees_every_clubs_events(self):
+        self.assertEqual(
+            self.titles(), {"Aragats summit", "Vayots Dzor ride"}
+        )
+
+    def test_filter_by_club_name_is_partial_and_case_insensitive(self):
+        self.assertEqual(self.titles("?club_name=peaks"), {"Aragats summit"})
+        self.assertEqual(
+            self.titles("?club_name=RIDERS"), {"Vayots Dzor ride"}
+        )
+
+    def test_search_matches_club_name(self):
+        self.assertEqual(self.titles("?search=Valley"), {"Vayots Dzor ride"})
+
+    def test_search_matches_title(self):
+        self.assertEqual(self.titles("?search=Aragats"), {"Aragats summit"})
+
+    def test_club_name_and_status_filters_combine(self):
+        self.assertEqual(
+            self.titles(f"?club_name=peaks&status={EventStatus.DRAFT.value}"),
+            {"Aragats summit"},
+        )
+        self.assertEqual(
+            self.titles(
+                f"?club_name=peaks&status={EventStatus.PUBLISHED.value}"
+            ),
+            set(),
+        )
+
+    def test_list_is_paginated(self):
+        res = self.client.get(f"{EVENTS_URL}?page_size=1")
+        body = res.json()
+        self.assertEqual(body["count"], 2)
+        self.assertEqual(len(body["results"]), 1)
+        self.assertIsNotNone(body["next"])
+
+    def test_event_carries_its_club_name(self):
+        res = self.client.get(f"{EVENTS_URL}?club_name=peaks")
+        self.assertEqual(res.json()["results"][0]["club_name"], "Peaks Club")
+
+    def test_can_retrieve_any_clubs_event(self):
+        event = Event.objects.get(club=self.valley)
+        res = self.client.get(detail_url(event.id))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["club_name"], "Valley Riders")
+
+    def test_club_name_filter_cannot_widen_an_owners_scope(self):
+        self.auth(self.valley.owner)
+        self.assertEqual(self.titles("?club_name=peaks"), set())
+
+
 class EventAccessControlTests(EventAPITestCase):
     def setUp(self):
         self.club, self.owner, self.guide = self.make_club_with_guide(

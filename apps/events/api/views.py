@@ -36,8 +36,8 @@ class EventViewSet(viewsets.ModelViewSet):
     permission_classes = [CanAccessEvents]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     filter_backends = [SearchFilter, OrderingFilter]
-    search_fields = ["title", "other_info"]
-    ordering_fields = ["start_at", "created_at", "title"]
+    search_fields = ["title", "description", "other_info", "club__name"]
+    ordering_fields = ["start_at", "created_at", "title", "club__name"]
     ordering = ["-start_at", "-created_at"]
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
@@ -86,6 +86,11 @@ class EventViewSet(viewsets.ModelViewSet):
             value = params.get(field)
             if value:
                 qs = qs.filter(**{field: value})
+
+        # Staff browsing every club know the club by name, not by id.
+        club_name = params.get("club_name")
+        if club_name:
+            qs = qs.filter(club__name__icontains=club_name)
         return qs
 
     @swagger_auto_schema(**EVENT_LIST_SCHEMA)

@@ -27,6 +27,13 @@ _FILTERS = [
         ("region", "Region of Armenia"),
         ("difficulty", "`easy`, `medium`, `hard`, `extreme`"),
         ("club", "Club id. Only meaningful for platform staff."),
+        ("club_name", "Partial club name, case-insensitive."),
+        ("search", "Matches title, description, other info and club name"),
+        (
+            "ordering",
+            "`start_at`, `created_at`, `title`, `club__name`; "
+            "prefix with `-` to reverse",
+        ),
     )
 ]
 
@@ -34,9 +41,10 @@ EVENT_LIST_SCHEMA = dict(
     tags=[EVENTS_TAG],
     operation_summary="List events",
     operation_description=(
-        "Everyone on a club's team sees that club's events, drafts "
-        "included. Platform Admins see all clubs and may filter with "
-        "`?club=<id>`."
+        "Paginated. Everyone on a club's team sees that club's events, "
+        "drafts included; a plain guide sees only the events assigned "
+        "to them. Platform Admins see every club's events and can "
+        "narrow by `?club=<id>` or `?club_name=<text>`."
     ),
     manual_parameters=_FILTERS,
     responses={200: EventSerializer(many=True)},
