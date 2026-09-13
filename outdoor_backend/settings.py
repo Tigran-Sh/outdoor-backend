@@ -174,14 +174,16 @@ class BaseConf(Configuration):
         ),
     }
 
-    # SIMPLE_JWT is built from these values in post_setup().
+    # SIMPLE_JWT is built from these values in post_setup(). The access
+    # token lasts two days so staff are not thrown out mid-task; refresh
+    # rotation still limits how long a stolen one is useful.
     JWT_ACCESS_TOKEN_LIFETIME_MINUTES = values.IntegerValue(
-        30,
+        2880,
         environ_name="JWT_ACCESS_TOKEN_LIFETIME_MINUTES",
         environ_prefix=None,
     )
     JWT_REFRESH_TOKEN_LIFETIME_DAYS = values.IntegerValue(
-        7,
+        30,
         environ_name="JWT_REFRESH_TOKEN_LIFETIME_DAYS",
         environ_prefix=None,
     )
