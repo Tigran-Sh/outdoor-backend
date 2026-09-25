@@ -173,6 +173,9 @@ class TeamMember(UUIDTimeStampedModel):
     phone = models.CharField(max_length=32, blank=True)
     birth_date = models.DateField(null=True, blank=True)
     experience_years = models.PositiveIntegerField(null=True, blank=True)
+    # Self-reported track record, including tours run before joining the
+    # platform. Not derived from this club's events.
+    guided_tour_count = models.PositiveIntegerField(null=True, blank=True)
     bio = models.TextField(blank=True)
 
     # Membership status. Independent from ``user.is_active`` (account).

@@ -80,15 +80,31 @@ class TeamMemberCreateTests(ClubAPITestCase):
                 languages=["en", "hy"],
                 phone="+37400000000",
                 experience_years=5,
+                guided_tour_count=120,
                 bio="Experienced mountain guide.",
             ),
             format="json",
         )
         self.assertEqual(res.status_code, 201, res.json())
+        self.assertEqual(res.json()["guided_tour_count"], 120)
+
         member = TeamMember.objects.get(user__email="elina@example.com")
         self.assertEqual(member.activity_types, ["hiking", "climbing"])
         self.assertEqual(member.languages, ["en", "hy"])
         self.assertEqual(member.experience_years, 5)
+        self.assertEqual(member.guided_tour_count, 120)
+
+    def test_guided_tour_count_is_optional(self):
+        res = self.client.post(TEAM_URL, self._payload(), format="json")
+        self.assertEqual(res.status_code, 201, res.json())
+        self.assertIsNone(res.json()["guided_tour_count"])
+
+    def test_guided_tour_count_cannot_be_negative(self):
+        res = self.client.post(
+            TEAM_URL, self._payload(guided_tour_count=-1), format="json"
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("guided_tour_count", res.json()["error"]["details"])
 
     def test_created_member_can_log_in(self):
         self.client.post(TEAM_URL, self._payload(), format="json")
@@ -370,6 +386,18 @@ class TeamMemberUpdateDeleteTests(ClubAPITestCase):
         self.assertEqual(res.status_code, 200)
         self.member.refresh_from_db()
         self.assertEqual(self.member.phone, "+37400000001")
+
+    def test_update_guided_tour_count(self):
+        res = self.client.patch(
+            detail_url(self.member.id),
+            {"guided_tour_count": 42},
+            format="json",
+        )
+        self.assertEqual(res.status_code, 200, res.json())
+        self.assertEqual(res.json()["guided_tour_count"], 42)
+
+        self.member.refresh_from_db()
+        self.assertEqual(self.member.guided_tour_count, 42)
 
     def test_update_full_name_syncs_to_account(self):
         res = self.client.patch(
