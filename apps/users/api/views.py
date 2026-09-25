@@ -127,7 +127,11 @@ class ChangePasswordView(APIView):
 class AdminUserViewSet(viewsets.ModelViewSet):
     """Platform-wide user management. Restricted to Platform Admin."""
 
-    queryset = User.objects.all()
+    # ``club`` / ``team_membership`` feed the serializer's club list;
+    # without them a page of users would cost three queries each.
+    queryset = User.objects.select_related(
+        "created_by", "club", "team_membership__club"
+    )
     permission_classes = [IsPlatformAdmin]
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ["email", "full_name"]

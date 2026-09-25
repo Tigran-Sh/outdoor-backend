@@ -149,6 +149,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
 
     capabilities = serializers.SerializerMethodField()
     created_by = serializers.SerializerMethodField()
+    clubs = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -160,6 +161,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
             "is_active",
             "capabilities",
             "custom_capabilities",
+            "clubs",
             "created_by",
             "created_at",
             "updated_at",
@@ -180,6 +182,38 @@ class AdminUserSerializer(serializers.ModelSerializer):
 
     def get_created_by(self, obj):
         return obj.created_by.email if obj.created_by else None
+
+    def get_clubs(self, obj):
+        """The clubs this account is attached to, and how.
+
+        A user reaches a club two ways: by owning it, or by being on its
+        team. Both are one-to-one, so this list holds at most two
+        entries and is usually empty (participants) or a single one.
+        """
+        clubs = []
+        owned = getattr(obj, "club", None)
+        if owned is not None:
+            clubs.append(
+                {
+                    "id": str(owned.pk),
+                    "name": owned.name,
+                    "relation": "owner",
+                    "is_active": True,
+                }
+            )
+        membership = getattr(obj, "team_membership", None)
+        if membership is not None and (
+            owned is None or membership.club_id != owned.pk
+        ):
+            clubs.append(
+                {
+                    "id": str(membership.club_id),
+                    "name": membership.club.name,
+                    "relation": "team_member",
+                    "is_active": membership.is_active,
+                }
+            )
+        return clubs
 
 
 class AdminUserCreateSerializer(serializers.ModelSerializer):

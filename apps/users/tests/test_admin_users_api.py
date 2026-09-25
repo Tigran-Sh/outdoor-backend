@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
 
+from apps.clubs.models import TeamMember
+from apps.clubs.tests.base import make_club, make_member
 from apps.users.constants import Role
 from apps.users.tests.base import (
     DEFAULT_PASSWORD,
@@ -182,3 +184,85 @@ class FilterSearchTests(BaseAPITestCase):
     def test_search_by_full_name(self):
         res = self.client.get(USERS_URL, {"search": "Alice"})
         self.assertEqual(self._emails(res), {"alice@example.com"})
+
+
+class UserClubsTests(BaseAPITestCase):
+    """The admin user list/detail shows where a person belongs."""
+
+    def setUp(self):
+        self.admin = make_platform_admin()
+        self.club, self.owner = make_club("owner@example.com", name="Peaks")
+        self.guide = make_member(self.club, "guide@example.com")
+        self.auth(self.admin)
+
+    def clubs_of(self, user):
+        res = self.client.get(detail_url(user.id))
+        self.assertEqual(res.status_code, 200, res.json())
+        return res.json()["clubs"]
+
+    def test_owner_is_reported_as_owner(self):
+        self.assertEqual(
+            self.clubs_of(self.owner),
+            [
+                {
+                    "id": str(self.club.id),
+                    "name": "Peaks",
+                    "relation": "owner",
+                    "is_active": True,
+                }
+            ],
+        )
+
+    def test_team_member_is_reported_as_member(self):
+        self.assertEqual(
+            self.clubs_of(self.guide.user),
+            [
+                {
+                    "id": str(self.club.id),
+                    "name": "Peaks",
+                    "relation": "team_member",
+                    "is_active": True,
+                }
+            ],
+        )
+
+    def test_suspended_membership_is_flagged_not_hidden(self):
+        self.guide.is_active = False
+        self.guide.save(update_fields=["is_active"])
+
+        entry = self.clubs_of(self.guide.user)[0]
+        self.assertEqual(entry["relation"], "team_member")
+        self.assertFalse(entry["is_active"])
+
+    def test_unattached_user_has_no_clubs(self):
+        participant = make_user("nobody@example.com")
+        self.assertEqual(self.clubs_of(participant), [])
+
+    def test_clubs_appear_in_the_list_too(self):
+        res = self.client.get(USERS_URL)
+        rows = {row["email"]: row["clubs"] for row in res.json()["results"]}
+
+        self.assertEqual(rows["owner@example.com"][0]["name"], "Peaks")
+        self.assertEqual(
+            rows["guide@example.com"][0]["relation"], "team_member"
+        )
+        self.assertEqual(rows[self.admin.email], [])
+
+    def test_owning_and_guiding_elsewhere_reports_both(self):
+        other_club, _ = make_club("other@example.com", name="Valley")
+        TeamMember.objects.create(club=other_club, user=self.owner)
+
+        entries = self.clubs_of(self.owner)
+        self.assertEqual(
+            {(row["name"], row["relation"]) for row in entries},
+            {("Peaks", "owner"), ("Valley", "team_member")},
+        )
+
+    def test_listing_users_does_not_scale_queries_with_rows(self):
+        with self.assertNumQueries(2):
+            self.client.get(USERS_URL)
+
+        make_club("owner2@example.com", name="Ridge")
+        make_member(self.club, "guide2@example.com")
+        with self.assertNumQueries(2):
+            self.client.get(USERS_URL)
