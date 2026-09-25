@@ -15,12 +15,12 @@ class EventAdmin(admin.ModelAdmin):
         "title",
         "club",
         "status",
-        "category",
+        "categories",
         "region",
         "start_at",
         "price_type",
     )
-    list_filter = ("status", "category", "region", "difficulty", "price_type")
+    list_filter = ("status", "region", "difficulty", "price_type")
     search_fields = ("title", "club__name")
     readonly_fields = ("sold_count", "cancelled_at", "created_at", "updated_at")
     inlines = [EventGalleryImageInline]

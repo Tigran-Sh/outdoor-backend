@@ -53,7 +53,7 @@ class CancellationReason(models.TextChoices):
 REQUIRED_TO_PUBLISH = (
     "title",
     "description",
-    "category",
+    "categories",
     "cover_image",
     "start_at",
     "region",

@@ -36,7 +36,7 @@ class EventCreateTests(EventAPITestCase):
     def payload(self, **overrides):
         data = {
             "title": "Aragats North Summit",
-            "category": ActivityType.HIKING.value,
+            "categories": [ActivityType.HIKING.value],
             "start_at": in_days(14),
             "region": Region.ARAGATSOTN.value,
             "difficulty": Difficulty.MEDIUM.value,
@@ -86,7 +86,38 @@ class EventCreateTests(EventAPITestCase):
 
     def test_unknown_category_rejected(self):
         res = self.client.post(
-            EVENTS_URL, self.payload(category="quidditch"), format="json"
+            EVENTS_URL, self.payload(categories=["quidditch"]), format="json"
+        )
+        self.assertEqual(res.status_code, 400)
+
+    def test_several_categories_are_saved(self):
+        res = self.client.post(
+            EVENTS_URL,
+            self.payload(
+                categories=[
+                    ActivityType.HIKING.value,
+                    ActivityType.CLIMBING.value,
+                ]
+            ),
+            format="json",
+        )
+        self.assertEqual(res.status_code, 201, res.json())
+        self.assertEqual(
+            res.json()["categories"], ["hiking", "climbing"]
+        )
+
+    def test_categories_cannot_be_empty(self):
+        res = self.client.post(
+            EVENTS_URL, self.payload(categories=[]), format="json"
+        )
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("categories", res.json()["error"]["details"])
+
+    def test_duplicate_categories_rejected(self):
+        res = self.client.post(
+            EVENTS_URL,
+            self.payload(categories=["hiking", "hiking"]),
+            format="json",
         )
         self.assertEqual(res.status_code, 400)
 
@@ -696,7 +727,7 @@ class EventAccessControlTests(EventAPITestCase):
     def payload(self):
         return {
             "title": "New event",
-            "category": ActivityType.HIKING.value,
+            "categories": [ActivityType.HIKING.value],
             "languages": [Language.HY.value],
         }
 
@@ -810,13 +841,13 @@ class EventFilterTests(EventAPITestCase):
         make_event(
             self.club,
             title="Draft hike",
-            category=ActivityType.HIKING.value,
+            categories=[ActivityType.HIKING.value],
             region=Region.SYUNIK.value,
         )
         make_event(
             self.club,
             title="Published climb",
-            category=ActivityType.CLIMBING.value,
+            categories=[ActivityType.CLIMBING.value],
             region=Region.KOTAYK.value,
             status=EventStatus.PUBLISHED,
         )
@@ -832,6 +863,20 @@ class EventFilterTests(EventAPITestCase):
 
     def test_filter_by_category(self):
         self.assertEqual(self.titles("category=hiking"), {"Draft hike"})
+
+    def test_filter_matches_any_of_an_events_categories(self):
+        make_event(
+            self.club,
+            title="Hike and climb",
+            categories=[
+                ActivityType.HIKING.value,
+                ActivityType.CLIMBING.value,
+            ],
+        )
+        self.assertEqual(
+            self.titles("category=climbing"),
+            {"Published climb", "Hike and climb"},
+        )
 
     def test_filter_by_region(self):
         self.assertEqual(self.titles("region=kotayk"), {"Published climb"})

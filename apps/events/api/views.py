@@ -83,7 +83,7 @@ class EventViewSet(viewsets.ModelViewSet):
     ordering = ["-start_at", "-created_at"]
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
-    FILTER_FIELDS = ("status", "category", "region", "difficulty")
+    FILTER_FIELDS = ("status", "region", "difficulty")
 
     def get_serializer_class(self):
         if self.action in ("create", "partial_update"):
@@ -128,6 +128,12 @@ class EventViewSet(viewsets.ModelViewSet):
             value = params.get(field)
             if value:
                 qs = qs.filter(**{field: value})
+
+        # An event can carry several categories; filtering asks for one
+        # of them, so this matches events that include it.
+        category = params.get("category")
+        if category:
+            qs = qs.filter(categories__contains=[category])
 
         # Staff browsing every club know the club by name, not by id.
         club_name = params.get("club_name")

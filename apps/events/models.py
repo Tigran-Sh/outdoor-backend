@@ -37,9 +37,13 @@ class Event(UUIDTimeStampedModel):
     # Block 1 — general
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    category = models.CharField(
-        max_length=32,
-        choices=ActivityType.choices,
+    # An outing often spans disciplines (a hike in to a climb), so this
+    # is a list, like a club's own activity types.
+    categories = ArrayField(
+        base_field=models.CharField(
+            max_length=32, choices=ActivityType.choices
+        ),
+        default=list,
         blank=True,
     )
     cover_image = models.ImageField(

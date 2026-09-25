@@ -38,7 +38,7 @@ class EventSerializer(serializers.ModelSerializer):
             "status",
             "title",
             "description",
-            "category",
+            "categories",
             "cover_image",
             "gallery_images",
             "start_at",
@@ -86,8 +86,9 @@ class EventWriteSerializer(serializers.ModelSerializer):
     so neither can be set by editing a field.
     """
 
-    category = serializers.ChoiceField(
-        choices=ActivityType.choices, required=False
+    categories = serializers.ListField(
+        child=serializers.ChoiceField(choices=ActivityType.choices),
+        required=False,
     )
     languages = serializers.ListField(
         child=serializers.ChoiceField(choices=Language.choices),
@@ -106,7 +107,7 @@ class EventWriteSerializer(serializers.ModelSerializer):
         fields = (
             "title",
             "description",
-            "category",
+            "categories",
             "cover_image",
             "gallery_images",
             "start_at",
@@ -137,6 +138,15 @@ class EventWriteSerializer(serializers.ModelSerializer):
         if self.instance is not None:
             return self.instance.club
         return self.context.get("club")
+
+    def validate_categories(self, value):
+        if not value:
+            raise serializers.ValidationError(
+                "Choose at least one category."
+            )
+        if len(set(value)) != len(value):
+            raise serializers.ValidationError("Duplicate categories.")
+        return value
 
     def validate_languages(self, value):
         if not value:

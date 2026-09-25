@@ -24,7 +24,7 @@ _FILTERS = [
     )
     for name, description in (
         ("status", "`draft`, `published`, `cancelled`, `completed`"),
-        ("category", "Activity type"),
+        ("category", "One activity type; matches events including it"),
         ("region", "Region of Armenia"),
         ("difficulty", "`easy`, `medium`, `hard`, `extreme`"),
         ("club", "Club id. Only meaningful for platform staff."),
